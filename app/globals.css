@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 47 54% 96%;
+    --foreground: 142 30% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 142 30% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 142 30% 12%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 142 30% 92%;
+    --secondary-foreground: 142 30% 20%;
+    --muted: 142 20% 93%;
+    --muted-foreground: 142 15% 42%;
+    --accent: 84 81% 56%;
+    --accent-foreground: 142 30% 12%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 142 15% 87%;
+    --input: 142 15% 87%;
+    --ring: 142 76% 36%;
+    --radius: 1rem;
+    --chart-1: 142 76% 36%;
+    --chart-2: 84 81% 56%;
+    --chart-3: 340 100% 64%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 197 37% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .shadow-soft {
+    box-shadow: 0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -5px rgba(0, 0, 0, 0.04);
+  }
+  .shadow-card {
+    box-shadow: 0 4px 24px -8px rgba(22, 163, 74, 0.12), 0 2px 8px -4px rgba(0, 0, 0, 0.06);
+  }
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(22, 163, 74, 0.25);
+  }
+}
+
+/* Skeleton shimmer */
+.skeleton {
+  background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted-foreground) / 0.1) 50%, hsl(var(--muted)) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hide scrollbar for horizontal strips */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
