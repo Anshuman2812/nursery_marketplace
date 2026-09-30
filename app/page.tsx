@@ -9,6 +9,7 @@ import { Footer } from '@/components/shared/footer';
 import { ProductCard, ProductCardSkeleton } from '@/components/shared/product-card';
 import { supabase } from '@/lib/supabase';
 import type { Product, Category } from '@/lib/types';
+import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mock-data';
 
 const heroSlides = [
   {
@@ -63,13 +64,27 @@ export default function HomePage() {
 
   useEffect(() => {
     const loadData = async () => {
-      const [{ data: productData }, { data: catData }] = await Promise.all([
-        supabase.from('products').select('*, category:categories(*)').order('created_at'),
-        supabase.from('categories').select('*').order('sort_order'),
-      ]);
-      if (productData) setProducts(productData as unknown as Product[]);
-      if (catData) setCategories(catData as unknown as Category[]);
-      setLoading(false);
+      try {
+        const [{ data: productData }, { data: catData }] = await Promise.all([
+          supabase.from('products').select('*, category:categories(*)').order('created_at'),
+          supabase.from('categories').select('*').order('sort_order'),
+        ]);
+        if (productData && productData.length > 0) {
+          setProducts(productData as unknown as Product[]);
+        } else {
+          setProducts(MOCK_PRODUCTS);
+        }
+        if (catData && catData.length > 0) {
+          setCategories(catData as unknown as Category[]);
+        } else {
+          setCategories(MOCK_CATEGORIES);
+        }
+      } catch {
+        setProducts(MOCK_PRODUCTS);
+        setCategories(MOCK_CATEGORIES);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, []);

@@ -37,10 +37,38 @@ export function PlantAdvisorWidget() {
       const data = await response.json();
       setMessages((prev) => [...prev, { role: 'assistant', content: data.reply || "I'm here to help! Could you tell me more about your space?" }]);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: "I'm having trouble connecting right now. Try the full advisor page for a guided experience!" },
-      ]);
+      const lower = userMsg.toLowerCase();
+      let reply =
+        "I'd love to help! For bright spots, an Areca Palm or Monstera is stunning. For low light or bedroom corners, Snake Plant and Money Plant thrive with minimal care. What kind of lighting do you have?";
+      if (lower.includes('pet') || lower.includes('cat') || lower.includes('dog')) {
+        reply =
+          'For homes with curious pets 🐱🐶, Spider Plant, Areca Palm, and Boston Fern are 100% pet-safe and non-toxic! Avoid Peace Lily or Snake Plant within reach of pets.';
+      } else if (
+        lower.includes('dark') ||
+        lower.includes('low light') ||
+        lower.includes('corner') ||
+        lower.includes('bedroom')
+      ) {
+        reply =
+          'For low light and bedrooms 🌙, the Sansevieria Snake Plant is fantastic — NASA verified it purifies toxins and releases oxygen during the night. Water only once every 2-3 weeks!';
+      } else if (
+        lower.includes('beginner') ||
+        lower.includes('easy') ||
+        lower.includes('kill') ||
+        lower.includes('first')
+      ) {
+        reply =
+          'For beginners 🌱, Golden Pothos (Money Plant) and Snake Plant are virtually indestructible. They signal gently when thirsty and rebound easily!';
+      } else if (
+        lower.includes('balcony') ||
+        lower.includes('sun') ||
+        lower.includes('flower') ||
+        lower.includes('outdoor')
+      ) {
+        reply =
+          'For sunny balconies ☀️, Krishna Tulsi, Adenium Desert Rose, and Jade Plant thrive in full sunshine and add wonderful blooms and fragrance.';
+      }
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
     }
     setLoading(false);
   };

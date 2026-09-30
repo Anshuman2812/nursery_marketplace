@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Star, Heart, ShoppingCart, Zap, Truck, Shield, Check, Droplets, Sun, Wind, Leaf, ChevronRight } from 'lucide-react';
@@ -11,11 +12,14 @@ import { useCart } from '@/components/providers/cart-provider';
 import { useWishlist } from '@/components/providers/wishlist-provider';
 import { supabase } from '@/lib/supabase';
 import type { Product, Review } from '@/lib/types';
+import { MOCK_PRODUCTS, MOCK_REVIEWS } from '@/lib/mock-data';
 import { formatINR, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params);
+export default function ProductDetailPage() {
+  const routerParams = useParams();
+  const router = useRouter();
+  const slug = (routerParams?.slug as string) || '';
   const [product, setProduct] = useState<Product | null>(null);
   const [similar, setSimilar] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -31,37 +35,63 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
   useEffect(() => {
     const load = async () => {
-      const { data: prod } = await supabase
-        .from('products')
-        .select('*, category:categories(*)')
-        .eq('slug', slug)
-        .maybeSingle();
-
-      if (prod) {
-        setProduct(prod as unknown as Product);
-        setSelectedPot((prod as unknown as Product).pot_sizes[0] || 'Medium');
-
-        // Similar products
-        const { data: sim } = await supabase
+      try {
+        const { data: prod } = await supabase
           .from('products')
           .select('*, category:categories(*)')
-          .eq('category_id', (prod as unknown as Product).category_id)
-          .neq('id', (prod as unknown as Product).id)
-          .limit(6);
-        if (sim) setSimilar(sim as unknown as Product[]);
+          .eq('slug', slug)
+          .maybeSingle();
 
-        // Reviews
-        const { data: revs } = await supabase
-          .from('reviews')
-          .select('*, profiles(name)')
-          .eq('product_id', (prod as unknown as Product).id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-        if (revs) setReviews(revs as unknown as Review[]);
+        if (prod) {
+          setProduct(prod as unknown as Product);
+          setSelectedPot((prod as unknown as Product).pot_sizes[0] || 'Medium');
+
+          // Similar products
+          const { data: sim } = await supabase
+            .from('products')
+            .select('*, category:categories(*)')
+            .eq('category_id', (prod as unknown as Product).category_id)
+            .neq('id', (prod as unknown as Product).id)
+            .limit(6);
+          if (sim && sim.length > 0) setSimilar(sim as unknown as Product[]);
+          else {
+            setSimilar(MOCK_PRODUCTS.filter((p) => p.slug !== slug).slice(0, 4));
+          }
+
+          // Reviews
+          const { data: revs } = await supabase
+            .from('reviews')
+            .select('*, profiles(name)')
+            .eq('product_id', (prod as unknown as Product).id)
+            .order('created_at', { ascending: false })
+            .limit(5);
+          if (revs && revs.length > 0) setReviews(revs as unknown as Review[]);
+          else setReviews(MOCK_REVIEWS);
+        } else {
+          // Fallback to mock product
+          const mockProd = MOCK_PRODUCTS.find((p) => p.slug === slug) || MOCK_PRODUCTS[0];
+          if (mockProd) {
+            setProduct(mockProd);
+            setSelectedPot(mockProd.pot_sizes[0] || 'Medium');
+            setSimilar(MOCK_PRODUCTS.filter((p) => p.slug !== mockProd.slug).slice(0, 4));
+            setReviews(MOCK_REVIEWS);
+          }
+        }
+      } catch {
+        const mockProd = MOCK_PRODUCTS.find((p) => p.slug === slug) || MOCK_PRODUCTS[0];
+        if (mockProd) {
+          setProduct(mockProd);
+          setSelectedPot(mockProd.pot_sizes[0] || 'Medium');
+          setSimilar(MOCK_PRODUCTS.filter((p) => p.slug !== mockProd.slug).slice(0, 4));
+          setReviews(MOCK_REVIEWS);
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
-    load();
+    if (slug) {
+      load();
+    }
   }, [slug]);
 
   const handleAddCart = () => {
@@ -70,10 +100,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     toast({ title: 'Added to cart', description: `${quantity} × ${product.name} (${selectedPot})` });
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!product) return;
-    addItem(product, quantity, selectedPot);
-    window.location.href = '/checkout';
+    await addItem(product, quantity, selectedPot);
+    router.push('/checkout');
   };
 
   const checkPincode = () => {

@@ -1,5 +1,5 @@
 import './globals.css';
-import type { Metadata, Viewport } from 'next';
+import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import { Providers } from '@/components/providers';
 
@@ -16,7 +16,12 @@ export const metadata: Metadata = {
     'Buy plants, seeds, pots, and gardening supplies online. Free delivery above Rs 499, 7-day plant guarantee, COD available. Powered by AI Plant Advisor.',
   keywords: ['plants', 'nursery', 'india', 'gardening', 'seeds', 'pots', 'bonsai', 'succulents'],
   manifest: '/manifest.json',
-  themeColor: '#16a34a',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
   openGraph: {
     title: 'GreenKart - AI-Powered Plant Marketplace',
     description: 'Buy plants online in India with free delivery, AI plant advisor, and 7-day guarantee.',
@@ -28,14 +33,6 @@ export const metadata: Metadata = {
     title: 'GreenKart - Plants Marketplace',
     description: 'Buy plants online in India with free delivery and AI plant advisor.',
   },
-};
-
-export const viewport: Viewport = {
-  themeColor: '#16a34a',
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({

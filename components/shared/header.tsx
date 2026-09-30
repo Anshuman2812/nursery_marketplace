@@ -10,11 +10,12 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/lib/types';
+import { MOCK_PRODUCTS } from '@/lib/mock-data';
 
 export function Header() {
   const { totalItems, setCartOpen } = useCart();
   const { count: wishlistCount } = useWishlist();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -33,12 +34,24 @@ export function Header() {
         setSuggestions([]);
         return;
       }
-      const { data } = await supabase
-        .from('products')
-        .select('id, name, slug, price, image_emoji, image_url')
-        .ilike('name', `%${searchQuery}%`)
-        .limit(5);
-      if (data) setSuggestions(data as unknown as Product[]);
+      try {
+        const { data } = await supabase
+          .from('products')
+          .select('id, name, slug, price, image_emoji, image_url')
+          .ilike('name', `%${searchQuery}%`)
+          .limit(5);
+        if (data && data.length > 0) {
+          setSuggestions(data as unknown as Product[]);
+        } else {
+          const q = searchQuery.toLowerCase();
+          const matches = MOCK_PRODUCTS.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 5);
+          setSuggestions(matches);
+        }
+      } catch {
+        const q = searchQuery.toLowerCase();
+        const matches = MOCK_PRODUCTS.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 5);
+        setSuggestions(matches);
+      }
     }, 200);
     return () => clearTimeout(delay);
   }, [searchQuery]);
@@ -159,7 +172,15 @@ export function Header() {
               className="w-10 h-10 rounded-full hover:bg-secondary flex items-center justify-center transition-colors"
               aria-label="Account"
             >
-              <User className="w-5 h-5 text-foreground" />
+              {user ? (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                  <span className="text-xs font-bold text-white">
+                    {(profile?.name?.[0] || user.email[0] || 'U').toUpperCase()}
+                  </span>
+                </div>
+              ) : (
+                <User className="w-5 h-5 text-foreground" />
+              )}
             </Link>
           </div>
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getSessionId } from '@/lib/utils';
 import type { Product, WishlistItem } from '@/lib/types';
 
@@ -14,11 +14,37 @@ type WishlistContextType = {
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
+const LOCAL_KEY = 'greenkart_local_wishlist';
+
+function readLocalWishlist(): WishlistItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(LOCAL_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalWishlist(items: WishlistItem[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(items));
+  } catch {
+    // ignore
+  }
+}
+
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [user, setUser] = useState<{ id: string } | null>(null);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setItems(readLocalWishlist());
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ? { id: session.user.id } : null);
     });
@@ -31,47 +57,93 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadWishlist = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    let query = supabase.from('wishlist').select('*, product:products(*)');
-    if (session?.user) {
-      query = query.eq('user_id', session.user.id);
-    } else {
-      query = query.is('user_id', null).eq('session_id', getSessionId());
+    if (!isSupabaseConfigured) {
+      setItems(readLocalWishlist());
+      return;
     }
-    const { data } = await query.order('created_at', { ascending: false });
-    if (data) setItems(data as unknown as WishlistItem[]);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      let query = supabase.from('wishlist').select('*, product:products(*)');
+      if (session?.user) {
+        query = query.eq('user_id', session.user.id);
+      } else {
+        query = query.is('user_id', null).eq('session_id', getSessionId());
+      }
+      const { data } = await query.order('created_at', { ascending: false });
+      if (data && data.length > 0) {
+        setItems(data as unknown as WishlistItem[]);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    setItems(readLocalWishlist());
   }, []);
 
   useEffect(() => {
-    loadWishlist();
+    if (isSupabaseConfigured) {
+      loadWishlist();
+    }
   }, [user?.id, loadWishlist]);
 
   const toggleWishlist = useCallback(
     async (product: Product) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const sessionId = getSessionId();
+      let savedToDb = false;
 
-      let query = supabase.from('wishlist').select('id').eq('product_id', product.id);
-      if (session?.user) {
-        query = query.eq('user_id', session.user.id);
-      } else {
-        query = query.is('user_id', null).eq('session_id', sessionId);
-      }
-      const { data: existing } = await query.maybeSingle();
+      if (isSupabaseConfigured) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const sessionId = getSessionId();
 
-      if (existing) {
-        await supabase.from('wishlist').delete().eq('id', existing.id);
-        setItems((prev) => prev.filter((i) => i.product_id !== product.id));
-      } else {
-        const insertData: Record<string, unknown> = {
-          product_id: product.id,
-          session_id: sessionId,
-        };
-        if (session?.user) {
-          insertData.user_id = session.user.id;
+          let query = supabase.from('wishlist').select('id').eq('product_id', product.id);
+          if (session?.user) {
+            query = query.eq('user_id', session.user.id);
+          } else {
+            query = query.is('user_id', null).eq('session_id', sessionId);
+          }
+          const { data: existing } = await query.maybeSingle();
+
+          if (existing) {
+            await supabase.from('wishlist').delete().eq('id', existing.id);
+            setItems((prev) => prev.filter((i) => i.product_id !== product.id));
+          } else {
+            const insertData: Record<string, unknown> = {
+              product_id: product.id,
+              session_id: sessionId,
+            };
+            if (session?.user) {
+              insertData.user_id = session.user.id;
+            }
+            await supabase.from('wishlist').insert(insertData);
+            await loadWishlist();
+          }
+          savedToDb = true;
+        } catch {
+          // ignore
         }
-        await supabase.from('wishlist').insert(insertData);
-        await loadWishlist();
+      }
+
+      if (!savedToDb) {
+        setItems((prev) => {
+          const exists = prev.some((i) => i.product_id === product.id);
+          let next: WishlistItem[];
+          if (exists) {
+            next = prev.filter((i) => i.product_id !== product.id);
+          } else {
+            const newItem: WishlistItem = {
+              id: 'wish_' + Date.now(),
+              user_id: null,
+              product_id: product.id,
+              product,
+              session_id: getSessionId(),
+            };
+            next = [newItem, ...prev];
+          }
+          writeLocalWishlist(next);
+          return next;
+        });
       }
     },
     [loadWishlist]

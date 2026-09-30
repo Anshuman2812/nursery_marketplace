@@ -9,6 +9,7 @@ import { Footer } from '@/components/shared/footer';
 import { ProductCard, ProductCardSkeleton } from '@/components/shared/product-card';
 import { supabase } from '@/lib/supabase';
 import type { Product, Category } from '@/lib/types';
+import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mock-data';
 import { cn, formatINR } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Slider } from '@/components/ui/slider';
@@ -99,16 +100,60 @@ function ListingContent() {
     setLoading(true);
     setPage(0);
     setHasMore(true);
-    const { data } = await buildQuery(0);
-    setProducts((data as unknown as Product[]) || []);
-    if (!data || data.length < pageSize) setHasMore(false);
-    setLoading(false);
-  }, [buildQuery]);
+    try {
+      const { data } = await buildQuery(0);
+      if (data && data.length > 0) {
+        setProducts(data as unknown as Product[]);
+        if (data.length < pageSize) setHasMore(false);
+      } else {
+        // Fallback to local mock data
+        let filtered = MOCK_PRODUCTS.filter((p) => {
+          if (categorySlug && p.category?.slug !== categorySlug) return false;
+          if (p.price < priceRange[0] || p.price > priceRange[1]) return false;
+          if (selectedSunlightState.length > 0 && !selectedSunlightState.includes(p.sunlight)) return false;
+          if (petSafeState && !p.pet_safe) return false;
+          if (beginnerState && !p.is_beginner_friendly) return false;
+          if (ratingFilter > 0 && p.rating < ratingFilter) return false;
+          if (selectedCare.length > 0 && !selectedCare.includes(p.care_level)) return false;
+          return true;
+        });
+
+        if (sortBy === 'price_low') filtered.sort((a, b) => a.price - b.price);
+        else if (sortBy === 'price_high') filtered.sort((a, b) => b.price - a.price);
+        else if (sortBy === 'rating') filtered.sort((a, b) => b.rating - a.rating);
+        else if (sortBy === 'discount') filtered.sort((a, b) => b.mrp - a.mrp);
+        else filtered.sort((a, b) => (b.is_trending ? 1 : 0) - (a.is_trending ? 1 : 0));
+
+        setProducts(filtered);
+        setHasMore(false);
+      }
+    } catch {
+      setProducts(MOCK_PRODUCTS);
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    buildQuery,
+    categorySlug,
+    priceRange,
+    selectedSunlightState,
+    petSafeState,
+    beginnerState,
+    ratingFilter,
+    selectedCare,
+    sortBy,
+  ]);
 
   useEffect(() => {
     const loadCats = async () => {
-      const { data } = await supabase.from('categories').select('*').order('sort_order');
-      if (data) setCategories(data as unknown as Category[]);
+      try {
+        const { data } = await supabase.from('categories').select('*').order('sort_order');
+        if (data && data.length > 0) setCategories(data as unknown as Category[]);
+        else setCategories(MOCK_CATEGORIES);
+      } catch {
+        setCategories(MOCK_CATEGORIES);
+      }
     };
     loadCats();
   }, []);
